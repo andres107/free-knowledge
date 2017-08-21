@@ -1,5 +1,6 @@
 #!/bin/bash
-source './turing/lib/icons.bash'
+source './turing/lib/icons.sh'
+source './turing/lib/color.sh'
 
 env='default.env'
 logo='./turing/logo.txt'
@@ -25,18 +26,42 @@ down()
   eval "docker-compose stop"
 }
 
+check_dir_django()
+{
+  exist=false
+  if [ -d "src/${PROJECT_NAME}" ]
+  then
+    echo -e "${red}The directory src/$PROJECT_NAME already exist, please fix it before to run turing."
+    exist=true
+  fi
+  if [ -d "src/${APP_NAME}" ]
+  then
+    echo -e "${red}The directory src/$APP_NAME already exist, please fix it before to run turing."
+    exist=true
+  fi
+  if [ -e "src/manage.py" ]
+  then
+    echo -e "${red}The file src/manage.py already exist, please fix it before to run turing."
+    exist=true
+  fi
+
+  if $exist
+  then
+    exit
+  fi
+}
+
 build()
 {
   if [ $IMAGE == 'django' ]
   then
-    echo -e -n "${empty_start} Creating project in django..."
-    eval "(docker-compose run $IMAGE django-admin startproject $PROJECT_NAME .) &>> error.log"
-    echo -e "...done $five_start"
-    echo  -e -n "${empty_start} Creating APP..."
-    eval "(docker-compose run $IMAGE python manage.py startapp $APP_NAME) &>> error.log"
-    echo -e "...done $five_start"
+    check_dir_django
+    echo -e -n "${green}${empty_start} Creating project in django..."
+    eval "(docker-compose run $IMAGE django-admin startproject $PROJECT_NAME . >& error.log && echo -e '...done  $five_start') || (echo -e '${red}...failed' && exit)"
+    echo  -e -n "${green}${empty_start} Creating APP..."
+    eval "(docker-compose run $IMAGE python manage.py startapp $APP_NAME >& error.log  && echo -e '...done ${five_start}') || (echo -e '${red}...failed' && exit)"
   else
-    echo -e "\n\tThe file default.env no exist."
+    echo -e "\n\t${red}The file default.env no exist.${esc}"
     exit
   fi
 }
@@ -56,9 +81,9 @@ do_action()
 {
   if [ $1 == 'build' ]
   then
-    echo -e "\n${empty_start} Building the project.."
+    echo -e "\n${yellow}${empty_start} Building the project..."
     build
-    echo -e "...done $five_start"
+    echo -e "${yellow} ...done $five_start"
   elif [ $1 == 'up' ]
   then
     up
@@ -78,7 +103,10 @@ parameters()
     echo -e "\n Use"
     echo -e "\t$0 [OPTION]"
     echo -e " Options"
-    echo -e "\tbuild     Build the project."
+    echo -e "\tbuild   Build a new project."
+    echo -e "\trun     run the project."
+    echo -e "\tlogs    show the project's logs."
+    echo -e "\tdown    stop the project's containers.\n"
     exit
   fi
 }
